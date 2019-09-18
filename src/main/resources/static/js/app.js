@@ -332,7 +332,11 @@ app.config(['$provide', '$routeProvider', '$locationProvider', '$resourceProvide
                         }, function () {
                             return null;
                         });
-                    }]
+                    }],
+                    
+                    computingOperators: ['$route', 'CrudService', function ($route, CrudService) {
+                    	return CrudService.fetchAllItems('adapters'); //FIXME return list based on device type
+                    }],
                 }
             })
 

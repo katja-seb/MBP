@@ -65,10 +65,17 @@
             <div class="header">
                 <h2>
                     Available monitoring operators
-                    <small>Options to enable and disable monitoring for this device.</small>
+                    <small>Options to enable and disable monitoring for this device</small>
                 </h2>
+                <ul class="header-dropdown m-r--5">
+                	<li>
+                       <a class="clickable" data-toggle="collapse" data-target="#monitoring-card-body">
+                           <i class="material-icons">keyboard_arrow_down</i>
+                       </a>
+                   	</li>
+              </ul>
             </div>
-            <div class="body">
+            <div class="body collapse in" id="monitoring-card-body">
                 <table class="table table-hover">
                     <thead>
                     <tr>
@@ -165,8 +172,122 @@
                 </table>
             </div>
         </div>
+    
+        <!-- Computing operators Control Card -->    
+	    <div class="card control-card">
+	        <div class="header">
+	            <h2>
+	                Computing operators
+	                <small>Deploy and undeploy operator on this device</small>
+	            </h2>
+				<ul class="header-dropdown m-r--5">
+                   <li>
+                       <a class="clickable" data-toggle="collapse" data-target="#operator-card-body">
+                           <i class="material-icons">keyboard_arrow_down</i>
+                       </a>
+                   </li>
+                </ul>
+	        </div>
+	        <div class="body collapse in" id="operator-card-body">
+	            <table class="table table-hover">
+	                <thead>
+	                <tr>
+	                    <th>Name</th>
+	                    <th>Unit</th>
+	                    <th>Parameters</th>
+	                    <th class="align-center">State</th>
+	                    <th class="align-center">Enable</th>
+	                </tr>
+	                </thead>
+	                <tbody>
+	                <tr ng-repeat="operator in ctrl.computingOperators" id="operator-{{operator.id}}">
+	                    <td>{{operator.name}}</td>
+	                    <td>{{operator.unit}}</td>
+	                    <td>
+	                         <table class="table parameter-table" ng-show="operator.parameters.length > 0">
+	                            <tbody>
+	                            <tr ng-repeat="parameter in operator.parameters">
+	                                <td>
+	                                    <label>{{parameter.name}}:</label><br/>
+	                                    <small ng-show="parameter.mandatory">(required)</small>
+	                                </td>
+	                                <td>
+	                                    <div ng-switch="parameter.type">
+	                                        <div ng-switch-when="Text">
+	                                            <input class="form-control" type="text"
+	                                                   ng-disabled="(operator.state == 'RUNNING') || (operator.state == 'LOADING')"
+	                                                   ng-required="parameter.mandatory"
+	                                                   ng-model="ctrl.parameterValues[$parent.$parent.$index][$index].value"/>
+	                                        </div>
+	                                        <div ng-switch-when="Number">
+	                                            <input class="form-control" type="number"
+	                                                   ng-disabled="(operator.state == 'RUNNING') || (operator.state == 'LOADING')"
+	                                                   ng-required="parameter.mandatory"
+	                                                   ng-model="ctrl.parameterValues[$parent.$parent.$index][$index].value"/>
+	                                        </div>
+	                                        <div class="switch" ng-switch-when="Switch">
+	                                            <label>No
+	                                                <input type="checkbox"
+	                                                       ng-disabled="(operator.state == 'RUNNING') || (operator.state == 'LOADING')"
+	                                                       ng-model="ctrl.parameterValues[$parent.$parent.$index][$index].value">
+	                                                <span class="lever"></span>Yes</label>
+	                                        </div>
+	                                    </div>
+	                                </td>
+	                                <td>
+	                                    <span class="label bg-grey" ng-show="parameter.unit">{{parameter.unit}}</span>
+	                                </td>
+	                            </tr>
+	                            </tbody>
+	                        </table>
+	                        <span ng-show="operator.parameters.length == 0">No parameters</span>
+	                    </td>
+	                    <td class="align-center">
+	<!--                         <div ng-switch="adapter.state" ng-click="adapter.reloadState()" class="clickable">
+	                            <div ng-switch-when="LOADING">
+	                                <div class="preloader pl-size-xs">
+	                                    <div class="spinner-layer pl-blue">
+	                                        <div class="circle-clipper left">
+	                                            <div class="circle"></div>
+	                                        </div>
+	                                        <div class="circle-clipper right">
+	                                            <div class="circle"></div>
+	                                        </div>
+	                                    </div>
+	                                </div>
+	                            </div>
+	                            <div ng-switch-when="NOT_READY">
+	                                <span class="label label-danger">Not ready</span>
+	                            </div>
+	                            <div ng-switch-when="READY">
+	                                <span class="label label-success">Ready</span>
+	                            </div>
+	                            <div ng-switch-when="RUNNING">
+	                                <span class="label label-info">Running</span>
+	                            </div>
+	                            <div ng-switch-default>
+	                                <span class="label label-default">Unknown</span>
+	                            </div>
+	                        </div> -->
+	                    </td>
+	                    <td class="align-center">
+	<!--                         <div class="switch">
+	                            <label>
+	                                <input type="checkbox" ng-model="adapter.enable"
+	                                       ng-change="adapter.onMonitoringToggle()"
+	                                       ng-disabled="(adapter.state!='READY') && (adapter.state!='RUNNING')">
+	                                <span class="lever"></span>
+	                            </label>
+	                        </div> -->
+	                    </td>
+	                </tr>
+	                </tbody>
+	            </table>
+	        </div>
+	    </div>    
     </div>
 </div>
+
 
 <!-- Chart cards -->
 <div ng-repeat="adapter in ctrl.compatibleAdapters">

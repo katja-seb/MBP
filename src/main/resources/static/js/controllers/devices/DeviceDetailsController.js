@@ -4,12 +4,13 @@
  * Controller for the device details page.
  */
 app.controller('DeviceDetailsController',
-    ['$scope', '$controller', '$routeParams', '$interval', 'deviceDetails', 'compatibleAdapters', 'DeviceService', 'MonitoringService', 'UnitService', 'NotificationService',
-        function ($scope, $controller, $routeParams, $interval, deviceDetails, compatibleAdapters, DeviceService, MonitoringService, UnitService, NotificationService) {
+    ['$scope', '$controller', '$routeParams', '$interval', 'deviceDetails', 'computingOperators', 'compatibleAdapters', 'DeviceService', 'MonitoringService', 'UnitService', 'NotificationService',
+        function ($scope, $controller, $routeParams, $interval, deviceDetails, computingOperators, compatibleAdapters, DeviceService, MonitoringService, UnitService, NotificationService) {
 
             //Selectors that allow the selection of different ui cards
             const DETAILS_CARD_SELECTOR = ".details-card";
             const MONITORING_CONTROL_CARD_SELECTOR = ".control-card";
+            const COMPUTING_OPERATOR_CARD_SELECTOR = ".computing-operator-card";
             const LIVE_CHART_SELECTOR_PREFIX = "#live-chart-";
             const HISTORICAL_CHART_SELECTOR_PREFIX = "#historical-chart-";
             const STATS_SELECTOR_PREFIX = "#value-stats-";
@@ -35,6 +36,7 @@ app.controller('DeviceDetailsController',
                 //Make device details and list of compatible adapters available
                 vm.device = deviceDetails;
                 vm.compatibleAdapters = compatibleAdapters;
+                vm.computingOperators = computingOperators;
 
                 //Prepare monitoring adapter objects
                 for (var i = 0; i < compatibleAdapters.length; i++) {
@@ -577,7 +579,65 @@ app.controller('DeviceDetailsController',
 
             angular.extend(vm, {
                 updateDeviceState: updateDeviceState,
-                getData: retrieveMonitoringData
+                getData: retrieveMonitoringData,
+                
+                computingOperatorCtrl: $controller('ItemListController as computingOperatorCtrl', {
+                    $scope: $scope,
+                    list: computingOperators
+                }),
+                
+                addComputingOperatorCtrl: $controller('AddItemController as addComputingOperatorCtrl', {
+                    $scope: $scope,
+                    addItem: function (data) {
+                        var compOperatorObject = {};
+
+                        for (var property in data) {
+                            if (data.hasOwnProperty(property)) {
+                            	compOperatorObject[property] = data[property];
+                            }
+                        }
+                        return null;                
+                        //return addComputingOperator(compOperatorObject);
+                    }
+                })/*,
+                
+                deleteDeviceCtrl: $controller('DeleteItemController as deleteDeviceCtrl', {
+                    $scope: $scope,
+                    deleteItem: deleteDevice,
+                    confirmDeletion: confirmDelete
+                })*/
             });
+            
+            
+            // Extension for deploying (computing) operators directly in device
+            // expose controller ($controller will auto-add to $scope)
+
+            // $watch 'addItem' result and add to 'itemList'
+            $scope.$watch(
+                function () {
+                    //Value being watched
+                    return vm.addComputingOperatorCtrl.result;
+                },
+                function () {
+                    //Callback
+                    var operator = vm.addComputingOperatorCtrl.result;
+
+                    if (operator) {
+                        //Close modal on success
+                        $("#addComputingOperatorModal").modal('toggle');
+
+                        //Add state and reload function to the new object
+                        operator.state = 'LOADING';
+                        //operator.reloadState = createReloadStateFunction(operator.id);
+
+
+                        //Add device to device list
+                        vm.computingOperatorCtrl.pushItem(operator);
+
+                        //Retrieve state of the new device
+                        //getOperatorState(operator.id);
+                    }
+                }
+            );
         }]
 );
