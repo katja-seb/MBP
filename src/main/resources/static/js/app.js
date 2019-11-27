@@ -334,7 +334,7 @@ app.config(['$provide', '$routeProvider', '$locationProvider', '$resourceProvide
                         });
                     }],
                     
-                    computingOperators: ['$route', 'CrudService', function ($route, CrudService) {
+                    computingOperators: ['$route', 'CrudService', 'DeploymentService', function ($route, CrudService, DeploymentService) {
                     	return CrudService.fetchAllItems('adapters'); //FIXME return list based on device type
                     }],
                 }

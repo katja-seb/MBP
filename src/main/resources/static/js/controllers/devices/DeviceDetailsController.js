@@ -4,8 +4,8 @@
  * Controller for the device details page.
  */
 app.controller('DeviceDetailsController',
-    ['$scope', '$controller', '$routeParams', '$interval', 'deviceDetails', 'computingOperators', 'compatibleAdapters', 'DeviceService', 'MonitoringService', 'UnitService', 'NotificationService',
-        function ($scope, $controller, $routeParams, $interval, deviceDetails, computingOperators, compatibleAdapters, DeviceService, MonitoringService, UnitService, NotificationService) {
+    ['$scope', '$controller', '$routeParams', '$interval', 'deviceDetails', 'computingOperators', 'compatibleAdapters', 'DeviceService', 'MonitoringService', 'UnitService', 'NotificationService', 'DeploymentService',
+        function ($scope, $controller, $routeParams, $interval, deviceDetails, computingOperators, compatibleAdapters, DeviceService, MonitoringService, UnitService, NotificationService, DeploymentService) {
 
             //Selectors that allow the selection of different ui cards
             const DETAILS_CARD_SELECTOR = ".details-card";
@@ -62,6 +62,30 @@ app.controller('DeviceDetailsController',
                     adapter.deleteValueLogs = createValueLogDeletionFunction(compatibleAdapters[i].id);
                 }
 
+                //Prepare computing operators object
+                for (var i = 0; i < computingOperators.length; i++) {
+                    //Retrieve adapter
+                    var operator = vm.computingOperators[i];
+
+                    //Add required properties
+                    operator.enable = false;
+                    operator.state = 'LOADING';
+                    operator.displayUnit = operator.unit;
+                    operator.reloadState = createReloadOperatorStateFunction(computingOperators[i].id);
+                    //adapter.onMonitoringToggle = createMonitoringToggleFunction(compatibleAdapters[i].id);
+                    /*adapter.getData = createDataRetrievalFunction(compatibleAdapters[i].id);
+                    adapter.isUpdateable = createUpdateCheckFunction(compatibleAdapters[i].id);
+                    adapter.getStats = createStatsRetrievalFunction(compatibleAdapters[i].id);
+                    adapter.loadingLive = createLoadingFunctions(compatibleAdapters[i].id, LIVE_CHART_SELECTOR_PREFIX,
+                        "Loading live chart...");
+                    adapter.loadingHistorical = createLoadingFunctions(compatibleAdapters[i].id,
+                        HISTORICAL_CHART_SELECTOR_PREFIX, "Loading historical chart...");
+                    adapter.loadingStats = createLoadingFunctions(compatibleAdapters[i].id, STATS_SELECTOR_PREFIX,
+                        "Loading value statistics...");
+                    adapter.onDisplayUnitChange = createOnDisplayUnitChangeFunction(compatibleAdapters[i].id);
+                    adapter.deleteValueLogs = createValueLogDeletionFunction(compatibleAdapters[i].id);*/
+                }
+                
                 //Stores the parameters and their values as assigned by the user
                 vm.parameterValues = [];
 
@@ -81,7 +105,8 @@ app.controller('DeviceDetailsController',
 
                 //Load device and adapters states for the first time
                 updateDeviceState();
-                loadMonitoringAdaptersStates()
+                loadMonitoringAdaptersStates();
+                //loadComputingOperatorsStates();
             })();
 
             /**
@@ -228,6 +253,43 @@ app.controller('DeviceDetailsController',
                     });
                 };
             }
+            
+            /**
+             * [Private]
+             * Returns a function that retrieves the current state of an operator with a certain id.
+             * @param operatorId The id of the operator
+             * @returns {Function}
+             */
+            function createReloadOperatorStateFunction(operatorId) {
+                //Create function and return it
+                return function () {                
+                	//Try to find an operator with this id
+                    var adapter = null;
+                    //Iterate over all adapters and find the matching one
+                    for (var i = 0; i < computingOperators.length; i++) {
+                        if (operatorId === computingOperators[i].id) {
+                            adapter = computingOperators[i];
+                            break;
+                        }
+                    }
+
+                    if (adapter == null) {
+                        return;
+                    }
+
+                    //Enable spinner
+                    adapter.state = 'LOADING';
+
+                    //Perform server request and set state of the adapter object accordingly
+                    DeploymentService.getOperatorState(DEVICE_ID, adapter.id).then(function (response) {
+                        adapter.state = response.data;
+                        adapter.enable = (adapter.state === "RUNNING");
+                    }, function (response) {
+                        adapter.state = 'UNKNOWN';
+                        NotificationService.notify("Could not retrieve operator state.", "error");
+                    });
+                };
+            }
 
             /**
              * [Private]
@@ -362,7 +424,30 @@ app.controller('DeviceDetailsController',
                     NotificationService.notify("Could not retrieve monitoring adapter states.", "error");
                 });
             }
+            /**
+             * [Private]
+             * Sends a server request in order to retrieve the monitoring states of all compatible monitoring adapters.
+             * The states are then stored in the corresponding adapter objects.
+             */
+            function loadComputingOperatorsStates() {
+                //Perform server request
+                MonitoringService.getDeviceMonitoringState(DEVICE_ID).then(function (response) {
+                    var statesMap = response.data;
 
+                    //Iterate over all compatible adapters and update all states accordingly
+                    for (var i in compatibleAdapters) {
+                        var componentId = compatibleAdapters[i].id + "@" + DEVICE_ID;
+                        compatibleAdapters[i].state = statesMap[componentId];
+                        compatibleAdapters[i].enable = (compatibleAdapters[i].state == "RUNNING");
+                    }
+                }, function (response) {
+                    for (var i in compatibleAdapters) {
+                        compatibleAdapters[i].state = 'UNKNOWN';
+                    }
+                    NotificationService.notify("Could not retrieve operator states.", "error");
+                });
+            }
+            
             /**
              * [Public]
              * Enables monitoring of the device with a certain monitoring adapter and a parameter list for this adapter.
@@ -579,65 +664,8 @@ app.controller('DeviceDetailsController',
 
             angular.extend(vm, {
                 updateDeviceState: updateDeviceState,
-                getData: retrieveMonitoringData,
+                getData: retrieveMonitoringData
                 
-                computingOperatorCtrl: $controller('ItemListController as computingOperatorCtrl', {
-                    $scope: $scope,
-                    list: computingOperators
-                }),
-                
-                addComputingOperatorCtrl: $controller('AddItemController as addComputingOperatorCtrl', {
-                    $scope: $scope,
-                    addItem: function (data) {
-                        var compOperatorObject = {};
-
-                        for (var property in data) {
-                            if (data.hasOwnProperty(property)) {
-                            	compOperatorObject[property] = data[property];
-                            }
-                        }
-                        return null;                
-                        //return addComputingOperator(compOperatorObject);
-                    }
-                })/*,
-                
-                deleteDeviceCtrl: $controller('DeleteItemController as deleteDeviceCtrl', {
-                    $scope: $scope,
-                    deleteItem: deleteDevice,
-                    confirmDeletion: confirmDelete
-                })*/
-            });
-            
-            
-            // Extension for deploying (computing) operators directly in device
-            // expose controller ($controller will auto-add to $scope)
-
-            // $watch 'addItem' result and add to 'itemList'
-            $scope.$watch(
-                function () {
-                    //Value being watched
-                    return vm.addComputingOperatorCtrl.result;
-                },
-                function () {
-                    //Callback
-                    var operator = vm.addComputingOperatorCtrl.result;
-
-                    if (operator) {
-                        //Close modal on success
-                        $("#addComputingOperatorModal").modal('toggle');
-
-                        //Add state and reload function to the new object
-                        operator.state = 'LOADING';
-                        //operator.reloadState = createReloadStateFunction(operator.id);
-
-
-                        //Add device to device list
-                        vm.computingOperatorCtrl.pushItem(operator);
-
-                        //Retrieve state of the new device
-                        //getOperatorState(operator.id);
-                    }
-                }
-            );
+            })
         }]
 );
