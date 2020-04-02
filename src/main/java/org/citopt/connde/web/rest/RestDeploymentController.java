@@ -1,46 +1,41 @@
 package org.citopt.connde.web.rest;
 
-import io.swagger.annotations.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
 import org.citopt.connde.RestConfiguration;
 import org.citopt.connde.domain.adapter.parameters.ParameterInstance;
 import org.citopt.connde.domain.adapter.parameters.ParameterType;
-import org.citopt.connde.domain.component.Actuator;
 import org.citopt.connde.domain.component.Component;
-import org.citopt.connde.domain.device.Device;
 import org.citopt.connde.domain.operatorInstance.OperatorInstance;
 import org.citopt.connde.repository.ActuatorRepository;
 import org.citopt.connde.repository.ComponentRepository;
 import org.citopt.connde.repository.OperatorInstanceRepository;
 import org.citopt.connde.repository.SensorRepository;
-import org.citopt.connde.repository.projection.ComponentProjection;
 import org.citopt.connde.repository.projection.OperatorInstanceListProjection;
-import org.citopt.connde.service.deploy.DeviceState;
 import org.citopt.connde.service.deploy.OperatorInstanceState;
 import org.citopt.connde.web.rest.helper.DeploymentWrapper;
 import org.citopt.connde.web.rest.response.ActionResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Example;
 import org.springframework.data.rest.webmvc.RepositoryLinksResource;
 import org.springframework.hateoas.ResourceProcessor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 /**
  * REST Controller for deployment related REST requests.
@@ -152,12 +147,22 @@ public class RestDeploymentController implements ResourceProcessor<RepositoryLin
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
-    private ResponseEntity<Boolean> isRunningComponent(String id, ComponentRepository repository) {
+    private ResponseEntity<Boolean> isRunningComponent(String id, ComponentRepository repository, OperatorInstanceRepository instanceRepository) {
         //Retrieve component from repository
         Component component = (Component) repository.findOne(id);
 
         //Check if running
-        return deploymentWrapper.isComponentRunning(component);
+        ResponseEntity<Boolean> response = deploymentWrapper.isComponentRunning(component);
+    	
+        // update state of operator instance object
+   	 	List<OperatorInstanceListProjection> affectedInstances = instanceRepository.findAllByDeviceId(component.getDevice().getId());
+        for (OperatorInstanceListProjection projection : affectedInstances) {
+       	 	OperatorInstance operatorInstance = instanceRepository.findOne(projection.getId());
+			if (operatorInstance != null) {
+		        if (response.getBody().booleanValue() == true) {
+		        	operatorInstance.setState(OperatorInstanceState.RUNNING);
+		        } else {
+		        	operatorInstance.setState(OperatorInstanceState.STOPPED);    
 		        }
 		        instanceRepository.save(operatorInstance);
 				break; //FIXME: add solution for the case where there are many operatorInstances of the same type in a device
